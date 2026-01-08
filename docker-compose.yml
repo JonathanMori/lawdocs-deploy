@@ -1,0 +1,55 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: lawdocs-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - lawdocs_net
+
+  api:
+    image: ghcr.io/SEU_USUARIO/lawdocs-api:latest
+    container_name: lawdocs-api
+    depends_on:
+      - db
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    networks:
+      - lawdocs_net
+
+  web:
+    image: ghcr.io/SEU_USUARIO/lawdocs-web:latest
+    container_name: lawdocs-web
+    networks:
+      - lawdocs_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: lawdocs-nginx
+    depends_on:
+      - web
+      - api
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - lawdocs_net
+
+volumes:
+  mysql_data:
+
+networks:
+  lawdocs_net:
+    driver: bridge
