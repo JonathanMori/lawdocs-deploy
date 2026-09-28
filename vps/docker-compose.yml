@@ -1,0 +1,110 @@
+# LawDocs em produção na VPS (Hostinger). Fica em /opt/lawdocs no servidor.
+# Segredos em .env e config/ (fora do git; ver *.example). Código-fonte em build/,
+# enviado por scripts/deploy.sh (git archive dos repositórios locais).
+#
+# Só o proxy publica portas (80/443): o Docker ignora o ufw nas portas publicadas.
+name: lawdocs
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: lawdocs
+      MYSQL_USER: lawdocs_user
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Sao_Paulo
+    command:
+      - --innodb-buffer-pool-size=1G
+      - --max-connections=100
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 2g
+
+  api:
+    build:
+      context: ./build/lawdocs-api
+      dockerfile: DockerFile
+    image: lawdocs-api:latest
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      TZ: America/Sao_Paulo
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -Duser.timezone=America/Sao_Paulo
+    volumes:
+      - ./config/api/application-prod.yml:/app/config/application-prod.yml:ro
+      - api_storage:/data/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 1536m
+
+  web:
+    build:
+      context: ./build/lawdocs-web
+      dockerfile: DockerFile
+    image: lawdocs-web:latest
+    restart: unless-stopped
+    mem_limit: 128m
+
+  robos:
+    build:
+      context: ./build/lawdocs-worker-bb
+      dockerfile: docker/Dockerfile
+    image: lawdocs-robos:latest
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      BB_WORKER_ENABLED: ${BB_WORKER_ENABLED:-false}
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: lawdocs
+      DB_USER: lawdocs_user
+      DB_PASS: ${DB_PASSWORD}
+    volumes:
+      - robos_data:/data
+      - ./config/robos/esaj_robot.config.json:/app/esaj_robot.config.json:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 2500m
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./config/nginx/htpasswd:/etc/nginx/htpasswd:ro
+      - certbot_www:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - web
+      - robos
+    mem_limit: 128m
+
+  # Uso: docker compose run --rm certbot renew  (ver scripts/renovar-certificado.sh)
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["tools"]
+    volumes:
+      - certbot_www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+
+volumes:
+  mysql_data:
+  api_storage:
+  robos_data:
+  certbot_www:
+  letsencrypt:

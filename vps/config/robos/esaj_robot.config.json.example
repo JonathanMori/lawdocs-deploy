@@ -1,0 +1,7 @@
+{
+  "edgeProfile": "/data/edge-profile-esaj",
+  "cdpPort": 9223,
+  "porta": 8100,
+  "host": "0.0.0.0",
+  "edgeArgs": ["--no-sandbox", "--disable-dev-shm-usage", "--lang=pt-BR"]
+}

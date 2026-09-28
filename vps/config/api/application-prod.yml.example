@@ -1,0 +1,22 @@
+# Sobrescreve o application-prod.yml de dentro do jar (valores do cliente Windows).
+# No servidor: /opt/lawdocs/config/api/application-prod.yml
+server:
+  address: 0.0.0.0
+  forward-headers-strategy: framework
+
+spring:
+  datasource:
+    url: jdbc:mysql://mysql:3306/lawdocs?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo
+    username: lawdocs_user
+    password: ${DB_PASSWORD}
+
+app:
+  storage:
+    baseDir: /data/storage
+  cors:
+    allowedOrigins:
+      - "https://sistema.gruposobrinhoadv.com.br"
+  esaj:
+    robot-url: http://robos:8100
+  # Credenciais/URLs que o cliente tenha no application-prod.yml dele (Projuris,
+  # PGE etc.) entram aqui também.

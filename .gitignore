@@ -1,2 +1,7 @@
 .env
 .DS_Store
+vps/.env
+vps/build/
+vps/config/**/*
+!vps/config/**/
+!vps/config/**/*.example
