@@ -62,6 +62,7 @@ services:
     image: lawdocs-robos:latest
     restart: unless-stopped
     shm_size: "1gb"
+    stop_grace_period: 30s  # Edge fecha limpo e grava os cookies de sessão
     environment:
       BB_WORKER_ENABLED: ${BB_WORKER_ENABLED:-false}
       DB_HOST: mysql
