@@ -38,6 +38,8 @@ for s in "${SERVICOS[@]}"; do
     | ssh "$HOST" "rm -rf $REMOTE/build/$r.new && mkdir -p $REMOTE/build/$r.new && tar -xf - -C $REMOTE/build/$r.new && rm -rf $REMOTE/build/$r && mv $REMOTE/build/$r.new $REMOTE/build/$r"
 done
 
+# Atenção: o script remoto chega pelo stdin; todo comando lá dentro que lê stdin
+# (docker compose exec/run) precisa de </dev/null, senão "engole" o resto do script.
 ssh "$HOST" "REMOTE=$REMOTE SERVICOS='${SERVICOS[*]}' bash -s" <<'EOF'
 set -euo pipefail
 cd "$REMOTE"
@@ -46,7 +48,7 @@ mkdir -p backups
 if docker compose ps --status running mysql | grep -q mysql; then
   f="backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql.gz"
   echo "==> Backup do banco: $f"
-  docker compose exec -T mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers lawdocs' | gzip > "$f"
+  docker compose exec -T mysql sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers lawdocs' </dev/null | gzip > "$f"
 fi
 
 for s in $SERVICOS; do
@@ -54,12 +56,12 @@ for s in $SERVICOS; do
 done
 
 echo "==> Build: $SERVICOS"
-docker compose build $SERVICOS
-docker compose up -d
+docker compose build $SERVICOS </dev/null
+docker compose up -d </dev/null
 
 echo "==> Aguardando API"
 for i in $(seq 1 40); do
-  if docker compose exec -T proxy wget -qO- http://api:8080/actuator/health 2>/dev/null | grep -q '"UP"'; then
+  if docker compose exec -T proxy wget -qO- http://api:8080/actuator/health </dev/null 2>/dev/null | grep -q '"UP"'; then
     echo "API OK"; docker image prune -f >/dev/null; docker compose ps; exit 0
   fi
   sleep 5
