@@ -89,10 +89,7 @@ services:
       - ./config/nginx/htpasswd:/etc/nginx/htpasswd:ro
       - certbot_www:/var/www/certbot:ro
       - letsencrypt:/etc/letsencrypt:ro
-    depends_on:
-      - api
-      - web
-      - robos
+    # sem depends_on: o nginx resolve os serviços na hora (sobe mesmo sem eles)
     mem_limit: 128m
 
   # Uso: docker compose run --rm certbot renew  (ver scripts/renovar-certificado.sh)
