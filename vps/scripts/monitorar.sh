@@ -41,3 +41,4 @@ sys.exit(0 if ok else 1)
 EOF
   checar esaj $? "Sessão do e-SAJ caiu: os robôs não conseguem ler a Pasta Digital. Faça login em https://sistema.gruposobrinhoadv.com.br/esaj" "Sessão do e-SAJ ativa de novo"
 fi
+exit 0
