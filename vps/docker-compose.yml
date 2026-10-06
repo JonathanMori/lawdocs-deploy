@@ -60,6 +60,7 @@ services:
       context: ./build/lawdocs-worker-bb
       dockerfile: docker/Dockerfile
     image: lawdocs-robos:latest
+    hostname: lawdocs-robos  # fixo: o Edge amarra a trava do perfil ao hostname
     restart: unless-stopped
     shm_size: "1gb"
     stop_grace_period: 30s  # Edge fecha limpo e grava os cookies de sessão
