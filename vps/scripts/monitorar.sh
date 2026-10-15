@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Monitoramento (cron a cada 5 min). Avisa no Telegram só quando o estado MUDA
 # (caiu / voltou), para não repetir alerta a cada execução.
-#   - site e API no ar      - sessão do e-SAJ (cookie CASTGC; checada de hora em hora)
+#   - site e API no ar      - sessão do e-SAJ (login ativo no e-SAJ; checada a cada 15 min)
 #   - disco e memória
 set -uo pipefail
 cd /opt/lawdocs
@@ -29,16 +29,10 @@ uso=$(df --output=pcent / | tail -1 | tr -dc 0-9)
 mem=$(free | awk '/Mem:/ {printf "%d", ($3/$2)*100}')
 [ "$mem" -lt 92 ]; checar memoria $? "Memória da VPS em ${mem}%" "Memória normalizada (${mem}%)"
 
-# Sessão do e-SAJ: de hora em hora (abre uma conexão CDP com o Edge do robô).
-if [ "$(date +%M)" -lt 5 ] || [ "${1:-}" = "--agora" ]; then
-  docker compose exec -T robos python - >/dev/null 2>&1 <<'EOF'
-import sys
-from patchright.sync_api import sync_playwright
-with sync_playwright() as p:
-    b = p.chromium.connect_over_cdp("http://127.0.0.1:9223")
-    ok = any(c["name"] == "CASTGC" for c in b.contexts[0].cookies())
-sys.exit(0 if ok else 1)
-EOF
+# Sessão do e-SAJ: a cada 15 min. Pergunta ao robô, que confere no próprio e-SAJ se o
+# login está ativo (o cookie CASTGC continua no navegador mesmo com a sessão expirada).
+if [ $((10#$(date +%M) % 15)) -lt 5 ] || [ "${1:-}" = "--agora" ]; then
+  docker compose exec -T robos curl -fsS -m 30 http://localhost:8100/sessao </dev/null 2>/dev/null | grep -q '"logado": true'
   checar esaj $? "Sessão do e-SAJ caiu: os robôs não conseguem ler a Pasta Digital. Faça login em https://sistema.gruposobrinhoadv.com.br/esaj" "Sessão do e-SAJ ativa de novo"
 fi
 exit 0
